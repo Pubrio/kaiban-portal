@@ -73,6 +73,12 @@ $('plan').onclick = async () => {
 };
 $('reset').onclick = async () => { if (confirm('Reset the board and app?')) { await api('/api/reset', { goal: $('goal').value }); poll(); } };
 
+$('hitl-toggle').onclick = async () => {
+  const r = await api('/api/hitl', { on: !(state && state.hitl) });
+  if (r.error) alert(r.error);
+  poll();
+};
+
 $('publish').onclick = async () => {
   if (!confirm('Publish the current app to GitHub?')) return;
   $('publish').disabled = true; $('publish').textContent = '⬆ Publishing…';
@@ -177,6 +183,10 @@ function render() {
   av.classList.toggle('hidden', !state.hasApp);
   av.textContent = 'App v' + state.appVersion;
   $('publish').classList.toggle('hidden', !(state.publishEnabled && state.hasApp));
+  const ht = $('hitl-toggle');
+  ht.textContent = state.hitl ? '✋ Review: On' : '✋ Review: Off';
+  ht.classList.toggle('primary', !!state.hitl);
+  ht.disabled = !state.idle;
   const cl = $('changelog');
   cl.classList.toggle('hidden', !(state.changelog || []).length);
   cl.innerHTML = '';

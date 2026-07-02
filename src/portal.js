@@ -30,9 +30,9 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, '..', 'portal'), { extensions: ['html'] }));
 
-// Human-in-the-loop gate: on = build pauses for approval; off = auto-completes.
-// Default off on the public demo so "add feature → live app updates" flows smoothly.
-const HITL = (process.env.HITL_DEFAULT || 'off').toLowerCase() !== 'off';
+// Human-in-the-loop gate: on = build pauses at a Q&A approval gate; off = auto-completes.
+// Default ON so the approval step is demoable; toggle per-room from the UI.
+const HITL = (process.env.HITL_DEFAULT || 'on').toLowerCase() !== 'off';
 
 const DEFAULT_BRIEF =
   'A single-page "To-Do List" web app (no build step): add tasks, mark complete, delete, ' +
@@ -44,7 +44,7 @@ const MAX_ROOMS = 500;
 
 function freshTeam(room, brief) {
   room.currentGoal = brief || '';
-  room.team = buildTeamFromRoster(room.roster, { mode: 'build', brief: brief || DEFAULT_BRIEF, hitl: HITL });
+  room.team = buildTeamFromRoster(room.roster, { mode: 'build', brief: brief || DEFAULT_BRIEF, hitl: room.hitl });
   room.store = room.team.getStore();
   room.started = false;
   room.comments = [];
@@ -54,7 +54,7 @@ function freshTeam(room, brief) {
 function makeRoom(id) {
   const room = {
     id, commentSeq: 1, currentApp: '', appVersion: 0, changelog: [],
-    lastPlan: null, lastAccess: Date.now(),
+    lastPlan: null, lastAccess: Date.now(), hitl: HITL,
     roster: [...DEFAULT_ROSTER, ...STANDBY_ROSTER].map((a) => ({ ...a })),
   };
   freshTeam(room);
@@ -128,13 +128,22 @@ function snapshot(room) {
     hasApp: !!room.currentApp, appVersion: room.appVersion, changelog: room.changelog,
     round: room.activeRound ? { type: room.activeRound.type, label: room.activeRound.label } : null,
     roster: room.roster, idle: isIdle(room), plan: room.lastPlan,
-    publishEnabled: !!process.env.GITHUB_TOKEN, room: room.id,
+    publishEnabled: !!process.env.GITHUB_TOKEN, room: room.id, hitl: room.hitl,
   };
 }
 
 // ---- API (all scoped to the caller's room) -----------------------------------
 app.get('/api/state', (req, res) => { const room = getRoom(req); captureIfDone(room); res.json(snapshot(room)); });
 app.get('/api/goal', (req, res) => res.json({ goal: getRoom(req).currentGoal }));
+
+// Toggle the human-in-the-loop Q&A gate for this room (idle only).
+app.post('/api/hitl', (req, res) => {
+  const room = getRoom(req);
+  if (!isIdle(room)) return res.status(409).json({ error: 'Finish the current round first.' });
+  room.hitl = !!req.body?.on;
+  freshTeam(room, room.currentGoal || undefined); // rebuild so the gate change takes effect
+  res.json({ ok: true, hitl: room.hitl });
+});
 
 app.post('/api/start', (req, res) => {
   const room = getRoom(req);
@@ -182,7 +191,7 @@ app.post('/api/enhance', (req, res) => {
   if (room.started && room.team.getWorkflowStatus() !== 'FINISHED') {
     return res.status(409).json({ error: 'A round is still running — wait for it to finish.' });
   }
-  room.team = buildTeamFromRoster(room.roster, { mode: 'enhance', currentApp: room.currentApp, feature, hitl: HITL });
+  room.team = buildTeamFromRoster(room.roster, { mode: 'enhance', currentApp: room.currentApp, feature, hitl: room.hitl });
   room.store = room.team.getStore();
   room.started = true;
   room.activeRound = { type: 'enhance', label: feature, author, captured: false };
@@ -256,12 +265,23 @@ app.post('/api/publish', async (req, res) => {
 });
 
 // The live app for a room (audience view iframes this with ?room=ID).
+// SECURITY: this serves AI-generated (untrusted) HTML. A strict CSP lets a
+// self-contained app run (inline JS/CSS, data-URI images, its own localStorage)
+// but blocks ALL network egress (connect-src 'none') so injected code cannot
+// exfiltrate anything, plus blocks form posts / base-uri hijacking. nosniff too.
+function sendApp(res, html) {
+  res.set('Content-Security-Policy',
+    "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; " +
+    "img-src data: blob:; font-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'");
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.type('html').send(html);
+}
 app.get('/app', (req, res) => {
   const room = getRoom(req);
   if (!room.currentApp) {
-    return res.type('html').send('<body style="font-family:system-ui;display:grid;place-items:center;height:100vh;margin:0;background:#0e1117;color:#8b93a7"><div>No app built yet — start it from the board.</div></body>');
+    return sendApp(res, '<body style="font-family:system-ui;display:grid;place-items:center;height:100vh;margin:0;background:#0e1117;color:#8b93a7"><div>No app built yet — start it from the board.</div></body>');
   }
-  res.type('html').send(room.currentApp);
+  sendApp(res, room.currentApp);
 });
 
 const PORT = process.env.PORT || process.env.PORTAL_PORT || 4000;

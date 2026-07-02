@@ -141,6 +141,10 @@ function agentFrom(def) {
     role: def.role,
     goal: def.goal,
     background: def.role,
+    // Give heavy single-file rewrites more room before MAX_ITERATIONS, and force
+    // a final answer instead of looping on a hallucinated tool call.
+    maxIterations: 15,
+    forceFinalAnswer: true,
     ...buildLlm({ model: modelFor(def.id) }),
   });
 }
