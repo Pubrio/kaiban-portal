@@ -30,6 +30,10 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, '..', 'portal'), { extensions: ['html'] }));
 
+// Human-in-the-loop gate: on = build pauses for approval; off = auto-completes.
+// Default off on the public demo so "add feature → live app updates" flows smoothly.
+const HITL = (process.env.HITL_DEFAULT || 'off').toLowerCase() !== 'off';
+
 const DEFAULT_BRIEF =
   'A single-page "To-Do List" web app (no build step): add tasks, mark complete, delete, ' +
   'filter All/Active/Completed, an "items left" counter, localStorage persistence, clean responsive UI.';
@@ -40,7 +44,7 @@ const MAX_ROOMS = 500;
 
 function freshTeam(room, brief) {
   room.currentGoal = brief || '';
-  room.team = buildTeamFromRoster(room.roster, { mode: 'build', brief: brief || DEFAULT_BRIEF, hitl: true });
+  room.team = buildTeamFromRoster(room.roster, { mode: 'build', brief: brief || DEFAULT_BRIEF, hitl: HITL });
   room.store = room.team.getStore();
   room.started = false;
   room.comments = [];
@@ -178,7 +182,7 @@ app.post('/api/enhance', (req, res) => {
   if (room.started && room.team.getWorkflowStatus() !== 'FINISHED') {
     return res.status(409).json({ error: 'A round is still running — wait for it to finish.' });
   }
-  room.team = buildTeamFromRoster(room.roster, { mode: 'enhance', currentApp: room.currentApp, feature, hitl: true });
+  room.team = buildTeamFromRoster(room.roster, { mode: 'enhance', currentApp: room.currentApp, feature, hitl: HITL });
   room.store = room.team.getStore();
   room.started = true;
   room.activeRound = { type: 'enhance', label: feature, author, captured: false };
