@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kaiban Portal · To-Do App Build Crew</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <button class="logo" id="drawer-toggle" title="Team roster">☰</button>
+        <div>
+          <div class="title">Kaiban Crew</div>
+          <div class="sub" id="provider">…</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span id="wf-status" class="wf-status">—</span>
+        <span id="appver" class="appver hidden">App v0</span>
+        <span class="you">You: <b id="me">Guest</b> <button id="rename" class="link">rename</button></span>
+        <a id="live" class="btn ghost" href="/live" target="_blank">↗ Live App</a>
+        <button id="reset" class="btn ghost">Reset</button>
+      </div>
+    </header>
+
+    <div class="promptbar">
+      <input id="goal" placeholder="What do you want the crew to build? (e.g. a Pomodoro timer web app)" />
+      <button id="autoplan" class="btn ghost">🧠 Auto-plan</button>
+      <button id="plan" class="btn primary">Plan &amp; Build →</button>
+    </div>
+    <div class="planpanel hidden" id="planpanel"></div>
+    <div class="changelog hidden" id="changelog"></div>
+
+    <!-- Left drawer: the team roster -->
+    <div class="drawer-scrim hidden" id="drawer-scrim"></div>
+    <aside class="drawer hidden" id="drawer">
+      <div class="drawer-head">
+        <h3>Team Roster</h3>
+        <button class="close" id="drawer-close">✕</button>
+      </div>
+      <p class="drawer-hint">Flip specialists on/off. The crew is assembled from whoever's active. (Editable only when idle.)</p>
+      <div id="roster-active"><h4>On the crew</h4><div id="roster-active-list"></div></div>
+      <div id="roster-standby"><h4>Standby specialists</h4><div id="roster-standby-list"></div></div>
+      <div class="add-agent-box">
+        <h4>＋ Add an agent</h4>
+        <input id="na-name" placeholder="Name (e.g. Riley)" />
+        <input id="na-role" placeholder="Role (e.g. Accessibility Auditor)" />
+        <select id="na-kind">
+          <option value="plan">plan — advises before build</option>
+          <option value="build">build — writes the app</option>
+          <option value="review" selected>review — checks after build</option>
+        </select>
+        <input id="na-goal" placeholder="Goal (what they focus on)" />
+        <button id="na-add" class="btn primary">Add to crew</button>
+      </div>
+    </aside>
+
+    <main class="layout">
+      <section class="board" id="board">
+        <div class="col" data-col="todo"><h3>To Do <span class="count" id="c-todo">0</span></h3><div class="cards" id="col-todo"></div></div>
+        <div class="col" data-col="doing"><h3>Doing <span class="count" id="c-doing">0</span></h3><div class="cards" id="col-doing"></div></div>
+        <div class="col" data-col="review"><h3>Q&amp;A Review <span class="count" id="c-review">0</span></h3><div class="cards" id="col-review"></div></div>
+        <div class="col" data-col="done"><h3>Done <span class="count" id="c-done">0</span></h3><div class="cards" id="col-done"></div></div>
+      </section>
+
+      <aside class="activity">
+        <h3>🧠 AI Steps <span class="live" id="live-dot"></span></h3>
+        <div class="feed" id="feed"></div>
+      </aside>
+    </main>
+
+    <!-- Task detail modal -->
+    <div class="modal-backdrop hidden" id="modal">
+      <div class="modal">
+        <button class="close" id="modal-close">✕</button>
+        <h2 id="m-title"></h2>
+        <div class="m-meta"><span id="m-agent" class="chip"></span><span id="m-status" class="chip"></span></div>
+
+        <div id="m-review" class="review hidden">
+          <div class="review-label">⏸ Awaiting your review — Approve or request changes:</div>
+          <textarea id="m-feedback" placeholder="Type feedback to send it back for changes (leave empty to approve)…"></textarea>
+          <div class="review-actions">
+            <button id="m-approve" class="btn primary">✓ Approve</button>
+            <button id="m-send" class="btn warn">↩ Send feedback</button>
+          </div>
+        </div>
+
+        <h4>Result</h4>
+        <pre id="m-result" class="result"></pre>
+
+        <h4>AI Steps for this task</h4>
+        <div id="m-steps" class="msteps"></div>
+
+        <h4>💬 Comments</h4>
+        <div id="m-comments" class="comments"></div>
+        <div class="add-comment">
+          <input id="m-comment-input" placeholder="Add a comment for the team…" />
+          <button id="m-comment-send" class="btn">Post</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "name": "todo-ai",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A to-do-list web app where a team of KaibanJS AI agents plans your tasks. Swappable LLM backend: Anthropic Claude or AWS Bedrock.",
+  "scripts": {
+    "build:app": "node src/build.js",
+    "hitl": "node src/hitl.js",
+    "proxy": "node src/proxy.js",
+    "portal": "node src/portal.js",
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "@langchain/aws": "0.1.15",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "kaibanjs": "^0.24.2"
+  }
+}

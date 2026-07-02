@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>To-Do App · Live</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0e1117; }
+      iframe { border: 0; width: 100vw; height: 100vh; display: block; background: #fff; }
+      .tag { position: fixed; top: 10px; right: 12px; font: 600 12px system-ui; color: #0d1220;
+        background: #35c692; padding: 5px 10px; border-radius: 999px; box-shadow: 0 2px 8px rgba(0,0,0,.3); z-index: 2; }
+      .flash { animation: flash 1s ease; }
+      @keyframes flash { 0% { box-shadow: 0 0 0 0 rgba(53,198,146,.7); } 100% { box-shadow: 0 0 0 24px rgba(53,198,146,0); } }
+    </style>
+  </head>
+  <body>
+    <div class="tag" id="tag">loading…</div>
+    <iframe id="frame" src="/app"></iframe>
+    <script>
+      let v = -1;
+      const tag = document.getElementById('tag');
+      const frame = document.getElementById('frame');
+      async function tick() {
+        try {
+          const s = await fetch('/api/state').then((r) => r.json());
+          if (s.appVersion !== v) {
+            v = s.appVersion;
+            frame.src = '/app?v=' + v; // cache-bust → reload the improved app
+            const feats = (s.changelog || []).length;
+            tag.textContent = v > 0 ? `v${v} · ${feats} feature${feats === 1 ? '' : 's'}` : 'not built yet';
+            tag.classList.remove('flash'); void tag.offsetWidth; tag.classList.add('flash');
+          }
+        } catch (_) {}
+      }
+      tick();
+      setInterval(tick, 2000);
+    </script>
+  </body>
+</html>
