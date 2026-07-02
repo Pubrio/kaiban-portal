@@ -1,15 +1,30 @@
 const $ = (id) => document.getElementById(id);
 let authKey = localStorage.getItem('kaiban_key') || '';
+
+// Room: each visitor gets their own isolated board. Share this URL (?room=ID)
+// so a team collaborates on ONE board.
+let room = new URLSearchParams(location.search).get('room');
+if (!room) {
+  room = Math.random().toString(36).slice(2, 8);
+  const u = new URL(location.href); u.searchParams.set('room', room); history.replaceState(null, '', u);
+}
+
 async function api(p, body) {
+  const headers = { 'x-kaiban-room': room, 'x-kaiban-key': authKey };
   const opts = body
-    ? { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-kaiban-key': authKey }, body: JSON.stringify(body) }
-    : undefined;
+    ? { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+    : { headers };
   const r = await fetch(p, opts);
   if (r.status === 401) {
     const k = window.prompt('This board is protected. Enter the workshop key:');
     if (k) { authKey = k; localStorage.setItem('kaiban_key', k); return api(p, body); }
   }
   return r.json();
+}
+// Keep the Live App tab pointed at this room.
+{
+  const seg = document.querySelector('.viewswitch a[href="/live"]');
+  if (seg) seg.href = '/live?room=' + room;
 }
 
 // ---- identity (each viewer names themselves; stored locally) ----

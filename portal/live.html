@@ -21,15 +21,18 @@
     <div class="tag" id="tag">loading…</div>
     <iframe id="frame" src="/app"></iframe>
     <script>
+      const room = new URLSearchParams(location.search).get('room') || 'lobby';
+      document.querySelector('.board-link').href = '/?room=' + room;
       let v = -1;
       const tag = document.getElementById('tag');
       const frame = document.getElementById('frame');
+      frame.src = '/app?room=' + room;
       async function tick() {
         try {
-          const s = await fetch('/api/state').then((r) => r.json());
+          const s = await fetch('/api/state?room=' + room).then((r) => r.json());
           if (s.appVersion !== v) {
             v = s.appVersion;
-            frame.src = '/app?v=' + v; // cache-bust → reload the improved app
+            frame.src = '/app?room=' + room + '&v=' + v; // cache-bust → reload improved app
             const feats = (s.changelog || []).length;
             tag.textContent = v > 0 ? `v${v} · ${feats} feature${feats === 1 ? '' : 's'}` : 'not built yet';
             tag.classList.remove('flash'); void tag.offsetWidth; tag.classList.add('flash');
