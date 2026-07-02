@@ -58,6 +58,18 @@ $('plan').onclick = async () => {
 };
 $('reset').onclick = async () => { if (confirm('Reset the board and app?')) { await api('/api/reset', { goal: $('goal').value }); poll(); } };
 
+$('publish').onclick = async () => {
+  if (!confirm('Publish the current app to GitHub?')) return;
+  $('publish').disabled = true; $('publish').textContent = '⬆ Publishing…';
+  try {
+    const r = await api('/api/publish', {});
+    if (r.error) alert(r.error);
+    else if (r.commit) window.open(r.commit, '_blank');
+  } finally {
+    $('publish').disabled = false; $('publish').textContent = '⬆ Publish to GitHub';
+  }
+};
+
 // AI auto-plan: propose stories + pull in specialists, then you review & build.
 $('autoplan').onclick = async () => {
   const v = $('goal').value.trim();
@@ -149,6 +161,7 @@ function render() {
   const av = $('appver');
   av.classList.toggle('hidden', !state.hasApp);
   av.textContent = 'App v' + state.appVersion;
+  $('publish').classList.toggle('hidden', !(state.publishEnabled && state.hasApp));
   const cl = $('changelog');
   cl.classList.toggle('hidden', !(state.changelog || []).length);
   cl.innerHTML = '';

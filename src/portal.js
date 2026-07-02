@@ -67,6 +67,17 @@ function freshTeam(brief) {
 const isIdle = () => !started || team.getWorkflowStatus() === 'FINISHED';
 freshTeam();
 
+// Persistence: if a previously built app is on disk, load it on boot so /live
+// and publishing survive a restart.
+try {
+  const f = path.join(GEN, 'index.html');
+  if (fs.existsSync(f)) {
+    currentApp = fs.readFileSync(f, 'utf8');
+    appVersion = 1;
+    changelog.push({ version: 1, feature: 'Loaded existing build', author: 'system', ts: Date.now() });
+  }
+} catch { /* ignore */ }
+
 // When a round finishes, capture its deliverable as the new app version.
 function captureIfDone() {
   if (!activeRound || activeRound.captured || !started) return;
@@ -135,6 +146,7 @@ function snapshot() {
     roster,
     idle: isIdle(),
     plan: lastPlan,
+    publishEnabled: !!process.env.GITHUB_TOKEN,
   };
 }
 
@@ -238,6 +250,38 @@ app.post('/api/roster/remove', (req, res) => {
   res.json({ ok: true, roster });
 });
 
+// Publish the current app to a GitHub repo (when the team is happy with it).
+// Needs GITHUB_TOKEN (repo write) + PUBLISH_REPO=owner/repo in the env.
+app.post('/api/publish', async (_req, res) => {
+  const token = process.env.GITHUB_TOKEN;
+  const repo = process.env.PUBLISH_REPO || 'Pubrio/todo-list-app';
+  const filePath = process.env.PUBLISH_PATH || 'index.html';
+  if (!token) return res.status(400).json({ error: 'Publishing is off: set GITHUB_TOKEN + PUBLISH_REPO.' });
+  if (!currentApp) return res.status(409).json({ error: 'No app to publish yet.' });
+  const url = `https://api.github.com/repos/${repo}/contents/${filePath}`;
+  const headers = { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'User-Agent': 'kaiban-portal' };
+  try {
+    let sha;
+    const cur = await fetch(url, { headers });
+    if (cur.ok) sha = (await cur.json()).sha; // update existing file
+    const put = await fetch(url, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({
+        message: `Publish app v${appVersion} from Kaiban Portal`,
+        content: Buffer.from(currentApp, 'utf8').toString('base64'),
+        ...(sha ? { sha } : {}),
+      }),
+    });
+    const j = await put.json();
+    if (!put.ok) return res.status(502).json({ error: j.message || 'publish failed' });
+    console.log(`[portal] published v${appVersion} → ${repo}`);
+    res.json({ ok: true, commit: j.commit?.html_url, file: j.content?.html_url });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || 'publish error' });
+  }
+});
+
 // The live app itself (audience view iframes this).
 app.get('/app', (_req, res) => {
   if (!currentApp) {
@@ -291,7 +335,7 @@ app.get('/api/result', (_req, res) => {
   }
 });
 
-const PORT = process.env.PORTAL_PORT || 4000;
+const PORT = process.env.PORT || process.env.PORTAL_PORT || 4000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n  Kaiban Portal: http://localhost:${PORT}`);
   console.log(`  Share on your LAN so teammates can join & review.`);
